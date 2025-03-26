@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Willpower Training - Go/No-Go Task</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+        #gameArea {
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #bubble {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        #startButton {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #score, #level {
+            font-size: 24px;
+            margin: 10px;
+        }
+        #feedback {
+            font-size: 20px;
+            margin: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameArea">
+        <h1>Willpower Training</h1>
+        <div id="bubble" style="display: none;">-</div>
+        <button id="startButton">Start Game</button>
+        <div id="score">Score: 0</div>
+        <div id="level">Level: 1</div>
+        <div id="feedback"></div>
+    </div>
+
+    <script>
+        const goWords = ['water', 'apple', 'walk', 'smile', 'book', 'friend', 'music', 'ForzatoBot'];
+        const noGoWords = ['drug', 'coke', 'meth', 'pill', 'smoke', 'high', 'dope', 'crack'];
+        const allWords = [...goWords, ...noGoWords];
+
+        let score = 0;
+        let level = 1;
+        let currentWord = '';
+        let isNoGo = false;
+        let gameActive = false;
+        let timeoutId = null;
+        let animationId = null;
+
+        const gameArea = document.getElementById('gameArea');
+        const bubble = document.getElementById('bubble');
+        const startButton = document.getElementById('startButton');
+        const scoreDisplay = document.getElementById('score');
+        const levelDisplay = document.getElementById('level');
+        const feedbackDisplay = document.getElementById('feedback');
+
+        let bubbleX = 0;
+        let bubbleY = 0;
+        let speedX = 2;
+        let speedY = 2;
+
+        function getRandomColor() {
+            const r = Math.floor(Math.random() * 256);
+            const g = Math.floor(Math.random() * 256);
+            const b = Math.floor(Math.random() * 256);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function getRandomWord() {
+            const randomIndex = Math.floor(Math.random() * allWords.length);
+            currentWord = allWords[randomIndex];
+            isNoGo = noGoWords.includes(currentWord);
+            bubble.textContent = currentWord;
+            bubble.style.backgroundColor = getRandomColor(); // Random color each time
+            bubble.className = ''; // Remove any previous class
+        }
+
+        function moveBubble() {
+            const gameWidth = gameArea.clientWidth - bubble.offsetWidth;
+            const gameHeight = gameArea.clientHeight - bubble.offsetHeight;
+
+            bubbleX += speedX * (level * 0.5);
+            bubbleY += speedY * (level * 0.5);
+
+            if (bubbleX <= 0 || bubbleX >= gameWidth) speedX = -speedX;
+            if (bubbleY <= 0 || bubbleY >= gameHeight) speedY = -speedY;
+
+            bubbleX = Math.max(0, Math.min(bubbleX, gameWidth));
+            bubbleY = Math.max(0, Math.min(bubbleY, gameHeight));
+
+            bubble.style.left = `${bubbleX}px`;
+            bubble.style.top = `${bubbleY}px`;
+
+            if (gameActive) {
+                animationId = requestAnimationFrame(moveBubble);
+            }
+        }
+
+        function startLevel() {
+            bubbleX = gameArea.clientWidth / 2 - bubble.offsetWidth / 2;
+            bubbleY = gameArea.clientHeight / 2 - bubble.offsetHeight / 2;
+            speedX = (Math.random() > 0.5 ? 1 : -1) * 2;
+            speedY = (Math.random() > 0.5 ? 1 : -1) * 2;
+
+            getRandomWord();
+            bubble.style.display = 'block';
+            moveBubble();
+
+            const displayTime = 2000 - (level * 200);
+            timeoutId = setTimeout(() => {
+                if (gameActive) {
+                    if (!isNoGo) {
+                        score--;
+                        feedbackDisplay.textContent = 'Missed a safe word!';
+                    }
+                    updateScore();
+                    nextWord();
+                }
+            }, Math.max(displayTime, 200));
+        }
+
+        function nextWord() {
+            cancelAnimationFrame(animationId);
+            bubble.style.display = 'none';
+            if (score >= level * 5) {
+                level++;
+                levelDisplay.textContent = `Level: ${level}`;
+                feedbackDisplay.textContent = 'Level Up!';
+                setTimeout(() => {
+                    feedbackDisplay.textContent = '';
+                    startLevel();
+                }, 1000);
+            } else {
+                setTimeout(startLevel, 500);
+            }
+        }
+
+        function updateScore() {
+            scoreDisplay.textContent = `Score: ${score}`;
+        }
+
+        startButton.addEventListener('click', () => {
+            gameActive = true;
+            startButton.style.display = 'none';
+            score = 0;
+            level = 1;
+            updateScore();
+            levelDisplay.textContent = `Level: ${level}`;
+            feedbackDisplay.textContent = '';
+            startLevel();
+        });
+
+        bubble.addEventListener('click', () => {
+            if (!gameActive) return;
+            clearTimeout(timeoutId);
+            cancelAnimationFrame(animationId);
+
+            if (isNoGo) {
+                score--;
+                feedbackDisplay.textContent = 'Avoid drug words!';
+            } else {
+                score++;
+                feedbackDisplay.textContent = 'Good job!';
+            }
+            updateScore();
+            bubble.style.display = 'none';
+            setTimeout(() => {
+                feedbackDisplay.textContent = '';
+                nextWord();
+            }, 500);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            gameActive = false;
+            clearTimeout(timeoutId);
+            cancelAnimationFrame(animationId);
+        });
+    </script>
+</body>
+</html>
